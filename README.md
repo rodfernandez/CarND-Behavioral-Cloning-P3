@@ -1,118 +1,166 @@
-# Behaviorial Cloning Project
+# Behavioral Cloning Project
 
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
+## [Rubric points](https://review.udacity.com/#!/rubrics/432/view)
 
-Overview
----
-This repository contains starting files for the Behavioral Cloning Project.
+### Required files
 
-In this project, you will use what you've learned about deep neural networks and convolutional neural networks to clone driving behavior. You will train, validate and test a model using Keras. The model will output a steering angle to an autonomous vehicle.
+#### Are all required files submitted?
 
-We have provided a simulator where you can steer a car around a track for data collection. You'll use image data and steering angles to train a neural network and then use this model to drive the car autonomously around the track.
+> The submission includes a model.py file, drive.py, model.h5 a writeup report and video.mp4.
 
-We also want you to create a detailed writeup of the project. Check out the [writeup template](https://github.com/udacity/CarND-Behavioral-Cloning-P3/blob/master/writeup_template.md) for this project and use it as a starting point for creating your own writeup. The writeup can be either a markdown file or a pdf document.
+This submission includes the following files:
 
-To meet specifications, the project will require submitting five files: 
-* model.py (script used to create and train the model)
-* drive.py (script to drive the car - feel free to modify this file)
-* model.h5 (a trained Keras model)
-* a report writeup file (either markdown or pdf)
-* video.mp4 (a video recording of your vehicle driving autonomously around the track for at least one full lap)
+* [model.py](model.py);
+* [drive.py](drive.py);
+* [model.h5](model.h5);
+* [README.md](README.md);
+* [video.mp4](video.mp4).
 
-This README file describes how to output the video in the "Details About Files In This Directory" section.
+### Quality of Code
 
-Creating a Great Writeup
----
-A great writeup should include the [rubric points](https://review.udacity.com/#!/rubrics/432/view) as well as your description of how you addressed each point.  You should include a detailed description of the code used (with line-number references and code snippets where necessary), and links to other supporting documents or external references.  You should include images in your writeup to demonstrate how your code works with examples.  
+#### Is the code functional?
 
-All that said, please be concise!  We're not looking for you to write a book here, just a brief description of how you passed each rubric point, and references to the relevant code :). 
+> The model provided can be used to successfully operate the simulation.
 
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup.
+Using the provided [simulator](https://github.com/udacity/self-driving-car-sim) and the files included in this repo ([drive.py](drive.py) & [model.h5](model.h5)), the car can be driven autonomously around the first track (lake track) by executing:
 
-The Project
----
-The goals / steps of this project are the following:
-* Use the simulator to collect data of good driving behavior 
-* Design, train and validate a model that predicts a steering angle from image data
-* Use the model to drive the vehicle autonomously around the first track in the simulator. The vehicle should remain on the road for an entire loop around the track.
-* Summarize the results with a written report
+`python drive.py model.h5`
 
-### Dependencies
-This lab requires:
+#### Is the code usable and readable?
 
-* [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit)
+> The code in model.py uses a Python generator, if needed, to generate data for training rather than storing the training data in memory. The model.py code is clearly organized and comments are included where needed.
 
-The lab enviroment can be created with CarND Term1 Starter Kit. Click [here](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) for the details.
+The module [model.py](model.py) takes a path for the `driving_log.csv` file as single argument. It opens and parses that file to create a dataset structure that is fed to the `augment_data` method.
+ 
+The `create_generator` returns a [generator](https://wiki.python.org/moin/Generators) and is reused for both training and validation datasets, reducing memory usage during the training.
 
-The following resources can be found in this github repository:
-* drive.py
-* video.py
-* writeup_template.md
+### Model Architecture and Training Strategy
 
-The simulator can be downloaded from the classroom. In the classroom, we have also provided sample data that you can optionally use to help train your model.
+#### Has an appropriate model architecture been employed for the task?
 
-## Details About Files In This Directory
+> The neural network uses convolution layers with appropriate filter sizes. Layers exist to introduce nonlinearity into the model. The data is normalized in the model.
 
-### `drive.py`
+This model was inspired by the one described by [Firner et. al. from NVIDIA](https://devblogs.nvidia.com/parallelforall/deep-learning-self-driving-cars/):
 
-Usage of `drive.py` requires you have saved the trained model as an h5 file, i.e. `model.h5`. See the [Keras documentation](https://keras.io/getting-started/faq/#how-can-i-save-a-keras-model) for how to create this file using the following command:
-```sh
-model.save(filepath)
-```
+![NVIDIA model](https://devblogs.nvidia.com/parallelforall/wp-content/uploads/2016/08/cnn-architecture-624x890.png)
 
-Once the model has been saved, it can be used with drive.py using this command:
+However, some changes were required in order to adapt it to the given dataset:
 
-```sh
-python drive.py model.h5
-```
+* The first layer, `cropping_2d_input_1`, expects a **3@160x320** image and crops it to **3@90x320**;
+* The forth convolution layer, `convolution_2d_4`, employs a *2x2 stride*, to produce an output (**64@3x18**) close to the original model (**64@3x20**);
+* There are 5 fully connected layers, empirically chosen;
+* The last connected layer, `dense_5`, output has a single class (instead of 10): **normalized steering angle**;
+* The original paper, doesn't mention what activation functions were applied after each layer. I found that `ELU` provided better results than `ReLU` and applied it to every layer, but the last one.
 
-The above command will load the trained model and use the model to make predictions on individual images in real-time and send the predicted angle back to the server via a websocket connection.
+Here is final model:
 
-Note: There is known local system's setting issue with replacing "," with "." when using drive.py. When this happens it can make predicted steering values clipped to max/min values. If this occurs, a known fix for this is to add "export LANG=en_US.utf8" to the bashrc file.
+![This model](model.png)
 
-#### Saving a video of the autonomous agent
+#### Has an attempt been made to reduce overfitting of the model?
 
-```sh
-python drive.py model.h5 run1
-```
+> Train/validation/test splits have been used, and the model uses dropout layers or other methods to reduce overfitting.
 
-The fourth argument `run1` is the directory to save the images seen by the agent to. If the directory already exists it'll be overwritten.
+The augmented dataset was split into 80% for training and 20% for validation. One dropout layer, `dropout_1` with **0.5** ratio was added between the convolution and fully connected layers. That was sufficient to prevent overfitting, since the validation loss was consistently lower than the training loss: 
 
-```sh
-ls run1
+![Loss over epochs](images/training_loss.png)
 
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_424.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_451.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_477.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_528.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_573.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_618.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_697.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_723.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_749.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_817.jpg
-...
-```
+#### Have the model parameters been tuned appropriately?
 
-The image file name is a timestamp when the image image was seen. This information is used by `video.py` to create a chronological video of the agent driving.
+> Learning rate parameters are chosen with explanation, or an Adam optimizer is used.
 
-### `video.py`
+Following over 40 iterations, the hyper-parameters where set to:
 
-```sh
-python video.py run1
-```
+* Batch size: 128;
+  * Didn't observe much difference between 32, 64 and 128. Since a generator was used, I chose the higher value to speed up the process;
+* Number of epochs: 10;
+  * The previous chart, suggested the losses could be even lower beyond 10 epochs, before overfitting. But the increasing costs with AWS, forced me to settle with 0.0113 for training loss and 0.0083 for validation loss;
+* Learning rate: 0.0001;
+  * Supplied to an Adam optimizer, instead of the default 0.001. Besides increasing the time to run each epoch to over 5 minutes, this provided the best result with the lower loss rates.
 
-Create a video based on images found in the `run1` directory. The name of the video will be name of the directory following by `'.mp4'`, so, in this case the video will be `run1.mp4`.
+#### Is the training data chosen appropriately?
 
-Optionally one can specify the FPS (frames per second) of the video:
+> Training data has been chosen to induce the desired behavior in the simulation (i.e. keeping the car on the track).
 
-```sh
-python video.py run1 --fps 48
-```
+##### Data collection
 
-The video will run at 48 FPS. The default FPS is 60.
+The first time I tried the simulator, I was using the keyboard to steer the car and it felt there were only 3 discrete values for steering angle: -25°, 0° and 25°... Since the quality of the data is crucial for any DL project, I had to beg my wife permission to buy a [racing wheel](http://www.thrustmaster.com/en_US/products/t150-force-feedback). She agreed, since it was for *educational purposes*.
 
-#### Why create a video
+Of course, the racing wheel wasn't supported by the simulator, so I had to fork and change its [source code](https://github.com/rodfernandez/self-driving-car-sim/commit/20aba1c4dbd87b3f1e3e0402ec76238659a6c2e8). Yes, I had to learn a bit of Unity, brush my C#, setup the development environment, etc. Tell me about yak shaving...
 
-1. It's been noted the simulator might perform differently based on the hardware. So if your model drives succesfully on your machine it might not on another machine (your reviewer). Saving a video is a solid backup in case this happens.
-2. You could slightly alter the code in `drive.py` and/or `video.py` to create a video of what your model sees after the image is processed (may be helpful for debugging).
+After all of that, I recorded a [training dataset](https://github.com/rodfernandez/carnd-term1-behavioral-cloning-dataset
+) consisting of:
+
+* 3 laps in the lake track, counter-clockwise;
+* 3 laps in the lake track, clockwise;
+* 1 lap recovery lap in the lake track, counter-clockwise;
+* 1 lap recovery lap in the lake track, counter-clockwise;
+* 2 laps in the mountain track, counter-clockwise.
+
+Right of the bat, training the model on CPU (MacBook Pro, Mid 2015, Intel Core i7 @ 2.5 GHz) in a single epoch without any data augmentation or pre-processing was sufficient to have the car driving itself around the lake track. The car also did fine for half-dozen corners on the mountain track. 
+
+So, training it on GPU should be piece of cake. Not so fast... The AWS EC2 instance that used to work with the same configuration, would keep throwing me a `CUDA_ERROR_UNKNOWN` error. Googling the issue didn't help, but I learn on [Slack](https://carnd.slack.com/archives/C34N6MK39/p1490810970137680) that uninstalling and re-installing the NVIDIA drivers solves the issue.
+
+Well, when I started training the model on GPU, with several epochs, I was able to achieve very low loss rates (>0.001), but I learned that was not a real indicator of real performance for autonomous driving. Under these conditions, I never managed to get a model capable of driving around the whole track. After dozens of iterations, my frustration was tremendous. I was about to drop it, when I found that some students were just using [Udacity's own dataset](https://d17h27t6h515a5.cloudfront.net/topher/2016/December/584f6edd_data/data.zip) in order to focus in getting the model and the training pipeline right with pretty good results. So, I decided to use it instead of my own...
+
+##### Data analysis
+
+The dataset had `8036` data points:
+
+![Steering angle points](images/steering.png)
+
+Here, we can see the actual distribution, please not there are a lot of data points where the steering angle is zero (or close to zero).
+
+![Original data distribution](images/original_hist.png)
+
+##### Data augumentation
+
+We can augument the data not only to gather more data points, but also to re-shape the distribution. In this case, that means not including the samples where the steering angle was close to zero. The module `model.py` includes a constant `STEERING_ANGLE_THRESHOLD = 0.001` that is used by the `augment_data` in order to decide which samples should be included in the augmentation.
+
+* `include_left`, `include_right`: if `True`, includes images from the left and right cameras with the steering angle adjusted by an offset (`STEERING_ANGLE_OFFSET = 0.25`).
+
+![Left, center and right cameras](images/cameras.png)
+
+* `include_flipped`: if `True`, includes the flipped image and negates the steering angle value. 
+
+![Flipped image](images/flipped.png)
+
+* `random_brightness`: if greater than zero, includes copies of the sample with brightness adjusted randomly in a interval of (-50%, 0). The initial interval was (-25%, 25%), but I found that reducing to 50% helped a lot with shadows on the track. The car tended to be pulled towards them and would usually go off the track.
+ 
+![Random brightness](images/brightness.png)
+
+* `random_contrast`: if greater than zero, includes copies of the sample with contrast adjusted randomly in a interval of (-50%, 50%). In the end, I decided to not use this feature, since it didn't helped improve the model performance.
+
+![Random contrast](images/contrast.png)
+
+After tweaking those parameters to augment the data, the distribution looked much better:
+
+![Augumented data distribution](images/augmented_hist.png)
+
+### Architecture and Training Documentation
+
+#### Is the solution design documented?
+
+> The README thoroughly discusses the approach taken for deriving and designing a model architecture fit for solving the given problem.
+
+See: [*Model Architecture and Training Strategy*.](#model-architecture-and-training-strategy)
+
+#### Is the model architecture documented?
+
+> The README provides sufficient details of the characteristics and qualities of the architecture, such as the type of model used, the number of layers, the size of each layer. Visualizations emphasizing particular qualities of the architecture are encouraged.
+
+See: [*Model Architecture and Training Strategy*.](#model-architecture-and-training-strategy)
+
+#### Is the creation of the training dataset and training process documented?
+
+> The README describes how the model was trained and what the characteristics of the dataset are. Information such as how the dataset was generated and examples of images from the dataset should be included.
+
+See: [*Is the training data chosen appropriately?*](#is-the-training-data-chosen-appropriately)
+
+### Simulation
+
+#### Is the car able to navigate correctly on test data?
+
+> No tire may leave the drivable portion of the track surface. The car may not pop up onto ledges or roll over any surfaces that would otherwise be considered unsafe (if humans were in the vehicle).
+
+[video.mp4](video.mp4) has the recording of the autonomous driving around the lake track. We can see the car never leaves the track, but I believe performance could be better, since we still notice some oscillation on the wheel. Anyway, it also worked to speeds up to 15 mph, rather than the original 9 mph.
+
